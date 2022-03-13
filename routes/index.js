@@ -2,21 +2,19 @@ const router = require('express').Router();
 const {
     liveSearch,
     search,
-    getLevels,
-    getObject,
-    getChildren,
-    getParams,
-    getGeometry,
-    getParents
+    getMainMenu,
+    getCapitalRepair,
+    getOpenDataLayersList,
+    getAllTracks,
+    getTrackByRegNumber
 } = require('../controllers');
 
 router.get('/livesearch', liveSearch);
 router.get('/search', search);
-router.get('/levels', getLevels);
-router.get('/object', getObject);
-router.get('/children', getChildren);
-router.get('/params', getParams);
-router.get('/geometry', getGeometry);
-router.get('/parents', getParents);
+router.get('/menu', getMainMenu);
+router.get('/capitalrepair', getCapitalRepair);
+router.get('/open_data_layers', getOpenDataLayersList);
+router.get('/tracks', getAllTracks);
+router.get('/track', getTrackByRegNumber);
 
 module.exports = router;

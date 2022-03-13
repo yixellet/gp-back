@@ -52,11 +52,10 @@ function search(req, res) {
     });
 }
 
-function getLevels(req, res) {
+function getMainMenu(req, res) {
   const query = new ParameterizedQuery(
     {
-      text: `SELECT ol.level, ol.name FROM ${DB_SCHEMA}.object_levels ol
-             WHERE ol.isactive = true ORDER BY ol.level`,
+      text: `SELECT * FROM gp.menu m;`,
     },
   );
 
@@ -69,157 +68,96 @@ function getLevels(req, res) {
     });
 }
 
-function getObject(req, res) {
-  db.one('SELECT * FROM ${schema:name}.getobject(${objectid});',
-  {
-    objectid: req.query.objectid,
-    schema: DB_SCHEMA
-  })
-    .then((data) => {
-      res.send(data)
-    })
-    .catch((error) => {
-      res.send({ error });
-    });
-}
-
-function getChildren(req, res) {
-  const mode = req.query.mode.split('_')[0]
-  let tableName
-  if (req.query.level === '11') {
-    tableName = 'getrooms';
-  } else if (req.query.level === '10') {
-    tableName = 'gethousechildren'
-  } else {
-    tableName = `getchildren_${mode}`
-  }
-  db.any('SELECT * FROM ${schema:name}.${table:name}(${objectid})',
+function getCapitalRepair(req, res) {
+  const query = new ParameterizedQuery(
     {
-      objectid: req.query.objectid,
-      schema: DB_SCHEMA,
-      table: tableName
-    })
+      text: `SELECT crh.id,
+              crh.address,
+              crh.code,
+              crh.expl_start,
+              crh.service_year,
+              array[ST_X(ST_Centroid(crh.geom)), ST_Y(ST_Centroid(crh.geom))] AS centroid,
+              array_agg(crs.name)
+            FROM gp_data.houses_services hs
+              JOIN gp_data.capital_repair_houses crh ON hs.house_id = crh.id
+              JOIN gp_data.capital_repair_services crs ON hs.service_id = crs.id
+            GROUP BY crh.id, crh.address, crh.code, crh.expl_start, crh.service_year, crh.geom`
+    },
+  );
+
+  db.any(query)
     .then((data) => {
-      res.send({
-        children: data
-      })
+      res.send({ data });
     })
     .catch((error) => {
       res.send({ error });
     });
 }
 
-function getParams(req, res) {
-  db.any('SELECT * FROM ${schema:name}.getparams(${objectid});',
-  {
-    objectid: req.query.objectid,
-    schema: DB_SCHEMA
-  })
-    .then((data) => {
-      res.send({params: data})
-    })
-    .catch((error) => {
-      res.send({ error });
-    });
-}
-
-function getGeometry(req, res) {
-  let tableName
-  let columnName
-  switch (req.query.level) {
-    case '1':
-      tableName = 'borders_Astrakhan'
-      columnName = 'objectid_adm'
-      break;
-    case '2':
-      tableName = 'borders_Astrakhan'
-      columnName = 'objectid_adm'
-      break;
-    case '3':
-      tableName = 'borders_Astrakhan'
-      columnName = 'objectid_mun'
-      break;
-    case '4':
-      tableName = 'borders_Astrakhan'
-      columnName = 'objectid_mun'
-      break;
-    case '5':
-      tableName = 'settlements'
-      columnName = 'objectid_adm'
-      break;
-    case '6':
-      tableName = 'settlements'
-      columnName = 'objectid_adm'
-      break;
-    case '7':
-      tableName = 'territories'
-      columnName = 'objectid_adm'
-      break;
-    case '8':
-      tableName = 'streets'
-      columnName = 'objectid_adm'
-      break;
-    case '9':
-      tableName = 'landuse'
-      columnName = 'objectid_adm'
-      break;
-    case '10':
-      tableName = 'buildings'
-      columnName = 'objectid_adm'
-      break;
-  }
-  db.one('SELECT ST_AsGeoJSON(ab.geom) AS geom, \
-            ST_Extent(ab.geom) AS extent \
-          FROM ${schema:name}.${table:name} ab \
-          WHERE ab.${column:name} = ${objectid} \
-          GROUP BY geom;',
+function getOpenDataLayersList(req, res) {
+  const query = new ParameterizedQuery(
     {
-      objectid: req.query.objectid,
-      schema: DB_GEOM_SCHEMA,
-      table: tableName,
-      column: columnName,
-    })
+      text: `SELECT c.id,
+              c.name,
+              c.categoryname AS codename,
+              array_agg(jsonb_build_object('id', l.id, 'name', l.name, 'codename', l.layername, 'desc', l.desc)) AS layers
+            FROM gp."odLayers_odCategories" lc
+              JOIN gp.open_data_layers l ON lc.layer_id = l.id
+              JOIN gp.open_data_categories c ON lc.category_id = c.id
+            GROUP BY c.id,c.name,c.categoryname;`
+    }
+  );
+
+  db.any(query)
     .then((data) => {
-      res.send({
-        data: data
-      })
+      res.send({ data });
     })
     .catch((error) => {
       res.send({ error });
     });
 }
 
-function getParents(req, res) {
-  const mode = req.query.mode.split('_')[0]
-  let object;
-  switch (req.query.level) {
-    case '17':
-      object = 'carplace_';
-      break;
-    case '12':
-      object = 'room_';
-      break;
-    case '11':
-      object = 'apartment_';
-      break;
-    case '10':
-      object = 'house_';
-      break;
-    case '9':
-      object = 'stead_';
-      break;
-    default:
-      object = ''
-  }
+function getAllTracks(req, res) {
+  const query = new ParameterizedQuery(
+    {
+      text: `SELECT t.id,
+      t.reg_number, 
+      t.number, 
+      (CASE
+       WHEN substring(t.number from '^\\d*') <> '' THEN substring(t.number from '^\\d*')::integer
+       ELSE 999
+       END) AS substr,
+       t.name, 
+       t.distance, 
+       t.tariff, 
+       t.transport_type
+    FROM transport.tracks t
+    WHERE t.isactive = true AND t.direction <> 'back' AND (t.tariff = 'нерегулируемый' OR t.tariff IS NULL)
+    ORDER BY substr;`
+    }
+  );
 
-  db.any('SELECT * FROM ${schema:name}.${table:name}(${objectid});',
-  {
-    objectid: req.query.objectid,
-    schema: DB_SCHEMA,
-    table: `${object}genealogy_${mode}`
-  })
+  db.any(query)
     .then((data) => {
-      res.send(data)
+      res.send({ data });
+    })
+    .catch((error) => {
+      res.send({ error });
+    });
+}
+
+function getTrackByRegNumber(req, res) {
+  const query = new ParameterizedQuery(
+    {
+      text: `SELECT t.id, t.reg_number, t.number, t.name, t.belonging, t.direction, t.tariff, ST_AsGeoJSON(t.geom)
+      FROM transport.tracks t
+      WHERE t.reg_number = ${req.query.regnum};`
+    }
+  );
+
+  db.any(query)
+    .then((data) => {
+      res.send({ data });
     })
     .catch((error) => {
       res.send({ error });
@@ -229,10 +167,9 @@ function getParents(req, res) {
 module.exports = {
   liveSearch,
   search,
-  getLevels,
-  getObject,
-  getChildren,
-  getParams,
-  getGeometry,
-  getParents
+  getMainMenu,
+  getCapitalRepair,
+  getOpenDataLayersList,
+  getAllTracks,
+  getTrackByRegNumber
 };
