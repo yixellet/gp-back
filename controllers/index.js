@@ -146,12 +146,33 @@ function getAllTracks(req, res) {
     });
 }
 
+/*
 function getTrackByRegNumber(req, res) {
+  console.log(req.query.regnum)
   const query = new ParameterizedQuery(
     {
       text: `SELECT t.id, t.reg_number, t.number, t.name, t.belonging, t.direction, t.tariff, ST_AsGeoJSON(t.geom)
       FROM transport.tracks t
-      WHERE t.reg_number = ${req.query.regnum};`
+      WHERE t.tariff = 'нерегулируемый' AND t.reg_number = ${req.query.regnum};`
+    }
+  );
+
+  db.any(query)
+    .then((data) => {
+      res.send({ data });
+    })
+    .catch((error) => {
+      res.send({ error });
+    });
+}
+*/
+
+function getTrackByRegNumber(req, res) {
+  const query = new ParameterizedQuery(
+    {
+      text: `SELECT t.id
+      FROM transport.tracks t
+      WHERE t.tariff = 'нерегулируемый' AND t.reg_number = ${req.query.regnum};`
     }
   );
 
