@@ -120,20 +120,9 @@ function getOpenDataLayersList(req, res) {
 function getAllTracks(req, res) {
   const query = new ParameterizedQuery(
     {
-      text: `SELECT t.id,
-      t.reg_number, 
-      t.number, 
-      (CASE
-       WHEN substring(t.number from '^\\d*') <> '' THEN substring(t.number from '^\\d*')::integer
-       ELSE 999
-       END) AS substr,
-       t.name, 
-       t.distance, 
-       t.tariff, 
-       t.transport_type
-    FROM transport.tracks t
-    WHERE t.isactive = true AND t.direction <> 'back' AND (t.tariff = 'нерегулируемый' OR t.tariff IS NULL)
-    ORDER BY substr;`
+      text: `SELECT *
+    FROM routes.routes_list
+    ORDER BY number;`
     }
   );
 
