@@ -6,7 +6,9 @@ const {
     getCapitalRepair,
     getOpenDataLayersList,
     getAllTracks,
-    getTrackByRegNumber
+    getTrackByRegNumber,
+    getAllBusStops,
+    getStopsByRoute
 } = require('../controllers');
 
 router.get('/livesearch', liveSearch);
@@ -15,6 +17,8 @@ router.get('/menu', getMainMenu);
 router.get('/capitalrepair', getCapitalRepair);
 router.get('/open_data_layers', getOpenDataLayersList);
 router.get('/tracks', getAllTracks);
+router.get('/bus_stops', getAllBusStops);
+router.get('/stops_by_route', getStopsByRoute);
 router.get('/track', getTrackByRegNumber);
 
 module.exports = router;

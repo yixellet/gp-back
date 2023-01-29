@@ -115,14 +115,22 @@ function getOpenDataLayersList(req, res) {
     .catch((error) => {
       res.send({ error });
     });
-}
+};
 
 function getAllTracks(req, res) {
   const query = new ParameterizedQuery(
     {
-      text: `SELECT *
-    FROM routes.routes_list
-    ORDER BY number;`
+      text: `SELECT rl.id,
+              rl.number,
+              rl.name,
+              bt.id AS type_id,
+              bt.name AS type_name,
+              array_agg(rg.id) AS geometry
+            FROM routes.routes_list rl
+            JOIN routes.bus_types bt ON rl.type_id = bt.id
+            JOIN routes.routes_geometry rg ON rl.id = rg.route_id
+            GROUP BY rl.id, rl.number, rl.name, bt.id, bt.name
+            ORDER BY id ASC;`
     }
   );
 
@@ -133,16 +141,14 @@ function getAllTracks(req, res) {
     .catch((error) => {
       res.send({ error });
     });
-}
+};
 
-/*
-function getTrackByRegNumber(req, res) {
-  console.log(req.query.regnum)
+function getAllBusStops(req, res) {
   const query = new ParameterizedQuery(
     {
-      text: `SELECT t.id, t.reg_number, t.number, t.name, t.belonging, t.direction, t.tariff, ST_AsGeoJSON(t.geom)
-      FROM transport.tracks t
-      WHERE t.tariff = 'нерегулируемый' AND t.reg_number = ${req.query.regnum};`
+      text: `SELECT id, name, ST_AsGeoJSON(geom)
+            FROM routes.bus_stops
+            ORDER BY id ASC;`
     }
   );
 
@@ -153,8 +159,7 @@ function getTrackByRegNumber(req, res) {
     .catch((error) => {
       res.send({ error });
     });
-}
-*/
+};
 
 function getTrackByRegNumber(req, res) {
   const query = new ParameterizedQuery(
@@ -172,7 +177,32 @@ function getTrackByRegNumber(req, res) {
     .catch((error) => {
       res.send({ error });
     });
-}
+};
+
+function getStopsByRoute(req, res) {
+  const query = new ParameterizedQuery(
+    {
+      text: `SELECT r.route AS id, r.direction, array_agg(stop) AS stops
+            FROM (
+              SELECT rs.route_id AS route, g.direction, json_build_object('id', rs.stop_id, 'name', s.name) AS stop
+              FROM routes.route_stop rs
+                JOIN routes.bus_stops s ON rs.stop_id = s.id
+                JOIN routes.routes_geometry g ON rs.route_id = g.id
+              WHERE g.route_id = ${req.query.route_id}
+              ORDER BY rs.route_id, rs.enum) r
+            GROUP BY r.route, r.direction
+            ORDER BY r.direction;`
+    }
+  );
+
+  db.any(query)
+    .then((data) => {
+      res.send({ data });
+    })
+    .catch((error) => {
+      res.send({ error });
+    });
+};
 
 module.exports = {
   liveSearch,
@@ -181,5 +211,7 @@ module.exports = {
   getCapitalRepair,
   getOpenDataLayersList,
   getAllTracks,
-  getTrackByRegNumber
+  getAllBusStops,
+  getTrackByRegNumber,
+  getStopsByRoute
 };
